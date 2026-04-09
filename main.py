@@ -6,9 +6,10 @@ import plotly.express as px
 
 def change_state():
     st.session_state.plot = None
-    st.session_state.stats = None
+    st.session_state.column_data = None
     st.session_state.warning = None
-    
+
+            
 st.set_page_config(page_title="EZ Plots", page_icon=None, layout="wide", initial_sidebar_state="auto", menu_items=None)    
 st.title("EZ Plots")
 st.sidebar.title("Toolbar")
@@ -22,16 +23,19 @@ st.sidebar.title("Toolbar")
 if "plot" not in st.session_state:
     st.session_state.plot = None
 
-if "stats" not in st.session_state:
-    st.session_state.stats = None
-
 if "warning" not in st.session_state:
     st.session_state.warning = None
-
+    
+if "column_data" not in st.session_state:
+    st.session_state.column_data = None
+    
+if "info_msg" not in st.session_state:
+    st.session_state.info_msg = None
+    
 uploaded_file = st.file_uploader("Drag and drop your CSV file here", type=["csv"], key="file_uploader", on_change=change_state, help="Upload a CSV file to visualize its data. As of now only CSV files are supported.")
-warning_spot = st.empty()
+warning_spot = st.empty() # Placeholder for displaying warnings related to plot suitability based on data types. This allows us to show warnings without disrupting the layout of the plot and info columns.
 
-col1, col2 = st.columns([3.5,2.5]) # 80% plot, 20% info
+col1, col2 = st.columns([0.6, 0.4]) 
 if uploaded_file is not None:
     df = dataframe = pd.read_csv(uploaded_file)
     st.sidebar.subheader("Select Columns to Plot and Plot Type")
@@ -53,26 +57,39 @@ if uploaded_file is not None:
                     fig = px.strip(df, x=column_for_X_axis, y=column_for_Y_axis, color=color_by_column)
                 else:
                     fig = px.scatter(df, x=column_for_X_axis, y=column_for_Y_axis, color=color_by_column)
-                               
-                st.session_state.plot = fig
             
             if color_by_column: # If a color grouping column is selected, calculate and store the value counts for that column in session state to display in the info column
-                st.session_state.stats = df[color_by_column].value_counts()
+                st.session_state.column_data = df[color_by_column].value_counts(normalize=True)
+                st.session_state.info_msg = None
             else:
-                st.session_state.stats = "No color grouping selected. Stats not available."
-    
+                    st.session_state.info_msg = "No color grouping selected. Value counts not available."
+                    st.session_state.column_data = None 
+            st.session_state.plot = fig                
+            
+
     if st.session_state.warning:
         warning_spot.warning(st.session_state.warning)
                 
     if "plot" in st.session_state and st.session_state.plot is not None:
         with col1:
+            st.subheader("Plot", width="content")
             st.plotly_chart(st.session_state.plot, width="stretch")
         with col2:
             st.subheader("Data Summary", width="content")
-            if isinstance(st.session_state.stats, str):
-                st.info(st.session_state.stats)
+            toggle_button = st.toggle("Raw Data", key="show_stats_toggle")
+            if toggle_button:
+                    st.dataframe(df.describe(include='all').T.astype(str).replace('nan', '-'))
             else:
-                st.dataframe(df.describe(include='all').T.astype(str).replace('nan', '-'))
+                if st.session_state.column_data is not None: # If a color grouping column is selected, display the value counts for that column in the info column. This provides users with insights into the distribution of categories in the selected color grouping column, which can help them interpret the plot more effectively.
+                    st.write(st.session_state.column_data)
+                else:
+                    st.info(st.session_state.info_msg)
+            
+            
+            
+            
+            # else:
+            #     st.dataframe(df.describe(include='all').T.astype(str).replace('nan', '-'))
             
                 # elif plot_type == "Line Plot":
         #     plt.figure(figsize=(10, 6))
