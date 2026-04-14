@@ -11,7 +11,7 @@ def change_state():
 
             
 st.set_page_config(page_title="EZ Plots", page_icon=None, layout="wide", initial_sidebar_state="auto", menu_items=None)    
-st.title("EZ Plots")
+st.title("EZ_Plots: Your Data's Best Friend for Quick and Easy Visualization")
 st.sidebar.title("Toolbar")
 # uploaded_files = st.file_uploader("Drag and drop your CSV file here", accept_multiple_files=True, type=["csv"], key="file_uploader",  help="Upload a CSV file to visualize its data. As of now only CSV files are supported.")
 # if uploaded_files is not None:    #for multiple file upload
@@ -40,7 +40,7 @@ warning_spot = st.empty() # Placeholder for displaying warnings related to plot 
 
 col1, col2 = st.columns([0.6, 0.4]) 
 if uploaded_file is not None:
-    df = dataframe = pd.read_csv(uploaded_file)
+    df = dataframe = pd.read_csv(uploaded_file, encoding='latin-1')
     st.sidebar.subheader("Select Columns to Plot and Plot Type")
     column_for_X_axis = st.sidebar.selectbox("Select Column for X-axis", df.columns, index=None, key="x_axis_select")
     column_for_Y_axis = st.sidebar.selectbox("Select Column for Y-axis", df.columns, index=None, key="y_axis_select")
@@ -57,14 +57,30 @@ if uploaded_file is not None:
             if plot_type == "Scatter Plot":
                 if column_for_X_axis in categorical_cols or column_for_Y_axis in categorical_cols:
                     st.session_state.warning = "Scatter plot may not be suitable for categorical data. Consider using a different plot type."
-                    fig = px.strip(df, x=column_for_X_axis, y=column_for_Y_axis, color=color_by_column)
+                    fig = px.strip(df, x=column_for_X_axis, y=column_for_Y_axis, color=color_by_column) # Using strip plot as an alternative to scatter plot for categorical data to provide a better visualization of the distribution of data points across categories. This allows users to still visualize relationships between variables even when they are categorical, while also addressing the issue of overplotting that can occur with scatter plots when dealing with categorical data.
                 else:
                     fig = px.scatter(df, x=column_for_X_axis, y=column_for_Y_axis, color=color_by_column)
+            elif plot_type == "Line Plot":
+                selected_items = st.sidebar.multiselect(
+                    "Select Countries to Compare", 
+                    options=df[color_by_column].unique(),
+                    default=df[color_by_column].unique()[:5] # Default to the first 5
+                )
+                #needs further work to handle different date formats and non-date formats in the X-axis column. Currently it assumes that if the X-axis column is not numeric, it must be a date that can be converted to year format. This is a simplification and may not hold true for all datasets, so additional logic may be needed to robustly handle different types of data in the X-axis column.
+                print(df.dtypes[column_for_X_axis])
+                df[column_for_X_axis] = pd.to_datetime(df[column_for_X_axis]).dt.year
+                df_grouped = df.groupby([column_for_X_axis, color_by_column])[column_for_Y_axis].mean().reset_index()
+                df_grouped = df_grouped.sort_values(by=column_for_X_axis)
+                df_final = df_grouped[df_grouped[color_by_column].isin(selected_items)]      
+                fig = px.line(df_final, x=column_for_X_axis, y=column_for_Y_axis, color=color_by_column)
+            else:
+                pass
             
             if color_by_column: # If a color grouping column is selected, calculate and store the value counts for that column in session state to display in the info column
                 summary_df = df[color_by_column].value_counts().to_frame()
-                summary_df["Percentage %"] = (summary_df["count"]/summary_df["count"].sum() * 100)
-                max_value_name = summary_df["count"].idxmax()
+                summary_df = summary_df.rename(columns={"count":"Count"})
+                summary_df["Percentage %"] = (summary_df["Count"]/summary_df["Count"].sum() * 100)
+                max_value_name = summary_df["Count"].idxmax()
                 max_value_percent = summary_df["Percentage %"].max()
                 st.session_state.top_trait = f"In this dataset, {max_value_name} accounts for {max_value_percent:.1f}% of the distribution."
                 st.session_state.column_data = summary_df
