@@ -67,12 +67,17 @@ if uploaded_file is not None:
                     default=df[color_by_column].unique()[:5] # Default to the first 5
                 )
                 #needs further work to handle different date formats and non-date formats in the X-axis column. Currently it assumes that if the X-axis column is not numeric, it must be a date that can be converted to year format. This is a simplification and may not hold true for all datasets, so additional logic may be needed to robustly handle different types of data in the X-axis column.
-                print(df.dtypes[column_for_X_axis])
-                df[column_for_X_axis] = pd.to_datetime(df[column_for_X_axis]).dt.year
-                df_grouped = df.groupby([column_for_X_axis, color_by_column])[column_for_Y_axis].mean().reset_index()
-                df_grouped = df_grouped.sort_values(by=column_for_X_axis)
-                df_final = df_grouped[df_grouped[color_by_column].isin(selected_items)]      
+                if df[column_for_X_axis].dtype == 'object':
+                    temp_x = pd.to_datetime(df[column_for_X_axis], errors='coerce')
+                    if temp_x.notnull().sum() > (0.8 * len(temp_x)):
+                        df[column_for_X_axis] = temp_x.dt.year
+                        df = df.dropna(subset=[column_for_X_axis]) # If more than 80% of the values can be converted to dates, we will treat the X-axis as a date and drop the rows that cannot be converted. This is a heuristic to handle cases where there may be some non-date values in the X-axis column, but the majority of the data is date-like and can be visualized as a line plot over time.
+                df_grouped = df.groupby([column_for_X_axis, color_by_column])
+                df_grouped = df_grouped.mean(numeric_only=True).reset_index() #drops non-numeric columns -NEEDS ADDRESSING
+                df_final = df_grouped[df_grouped[color_by_column].isin(selected_items)]
+                print(df_final.columns)                 
                 fig = px.line(df_final, x=column_for_X_axis, y=column_for_Y_axis, color=color_by_column)
+
             else:
                 pass
             
