@@ -35,6 +35,9 @@ if "info_msg" not in st.session_state:
 if "top_trait" not in st.session_state:    
     st.session_state.top_trait = None
     
+if "selected_items" not in st.session_state:
+    st.session_state.selected_items = None
+    
 uploaded_file = st.file_uploader("Drag and drop your CSV file here", type=["csv"], key="file_uploader", on_change=change_state, help="Upload a CSV file to visualize its data. As of now only CSV files are supported.")
 warning_spot = st.empty() # Placeholder for displaying warnings related to plot suitability based on data types. This allows us to show warnings without disrupting the layout of the plot and info columns.
 
@@ -42,14 +45,33 @@ col1, col2 = st.columns([0.6, 0.4])
 if uploaded_file is not None:
     df = dataframe = pd.read_csv(uploaded_file, encoding='latin-1')
     st.sidebar.subheader("Select Columns to Plot and Plot Type")
+    for col in df.columns:
+        print(df[col].dtype)
+        if not pd.api.types.is_numeric_dtype(df[col]):
+            print(f"🕵️ Detective is checking column: {col}")
+            temp_date = pd.to_datetime(df[col], errors='coerce',format='mixed') # Attempt to convert to datetime, coercing errors to NaT. The 'format' parameter is set to 'mixed' to allow for multiple date formats within the same column, which is a common scenario in real-world datasets. This way, we can still identify and convert valid date entries while gracefully handling any non-date entries without causing the entire conversion to fail.
+            print(temp_date.notnull().sum())
+            if temp_date.notnull().sum() > (0.8 * len(df)):
+                # Convert to Year
+                print("gets in here")
+                df[col] = temp_date.dt.year
+                # Drop the "Bad" rows immediately
+                df = df.dropna(subset=[col])
+                # Now it's safe to turn into an official integer
+                df[col] = df[col].astype(int)
+                date_column = df[col].name
+                
+    print("comes down here")         
+    temp_num_cols = [col for col in df.select_dtypes(include=['number']).columns.tolist() if col != date_column] # Exclude the date column from the list of numeric columns to prevent it from being selected as the Y-axis in the plot, which could lead to misleading visualizations. By doing this, we ensure that users are only able to select appropriate numeric columns for the Y-axis, while still allowing the date column to be used as the X-axis for time series visualizations.
     column_for_X_axis = st.sidebar.selectbox("Select Column for X-axis", df.columns, index=None, key="x_axis_select")
-    column_for_Y_axis = st.sidebar.selectbox("Select Column for Y-axis", df.columns, index=None, key="y_axis_select")
+    column_for_Y_axis = st.sidebar.selectbox("Select Column for Y-axis", temp_num_cols, index=None, key="y_axis_select")
     plot_type = st.sidebar.selectbox("Select Plot Type", ["Scatter Plot", "Line Plot", "Bar Plot"], index=None)
 
     categorical_cols = df.select_dtypes(include=['object', 'category', 'string']).columns.tolist() # Identify categorical columns for special handling in scatter plot
        
     if column_for_X_axis and column_for_Y_axis and plot_type:
-        color_by_column = st.sidebar.selectbox("Color by Column", df.columns, index=None, key="color_by_select")
+        color_by_col_options = [col for col in df.columns if col != column_for_X_axis] # Exclude the X-axis column from the color grouping options to prevent crashing when df.groupby([column_for_X_axis, color_by_column]) is used for line plot, since grouping by the X-axis column doesn't make sense and can lead to errors or misleading visualizations. By excluding the X-axis column from the color grouping options, we guide users towards making more meaningful selections for their visualizations.
+        color_by_column = st.sidebar.selectbox("Color by Column", color_by_col_options, index=None, key="color_by_select")
         
         if st.sidebar.button("Generate Plot", icon="📊", width="stretch"):
             # Reset the warning every time a new plot is requested
@@ -62,20 +84,16 @@ if uploaded_file is not None:
                     fig = px.scatter(df, x=column_for_X_axis, y=column_for_Y_axis, color=color_by_column)
             elif plot_type == "Line Plot":
                 selected_items = st.sidebar.multiselect(
-                    "Select Countries to Compare", 
-                    options=df[color_by_column].unique(),
-                    default=df[color_by_column].unique()[:5] # Default to the first 5
+                    f"Select {color_by_column} to Compare", 
+                    options=df[color_by_column].notnull().unique() # need to work on the nan errors i get when there are nulls in the color by column. 
+                    default=df[color_by_column].notnull().unique()[:5] # Default to the first 5
                 )
-                #needs further work to handle different date formats and non-date formats in the X-axis column. Currently it assumes that if the X-axis column is not numeric, it must be a date that can be converted to year format. This is a simplification and may not hold true for all datasets, so additional logic may be needed to robustly handle different types of data in the X-axis column.
-                if df[column_for_X_axis].dtype == 'object':
-                    temp_x = pd.to_datetime(df[column_for_X_axis], errors='coerce')
-                    if temp_x.notnull().sum() > (0.8 * len(temp_x)):
-                        df[column_for_X_axis] = temp_x.dt.year
-                        df = df.dropna(subset=[column_for_X_axis]) # If more than 80% of the values can be converted to dates, we will treat the X-axis as a date and drop the rows that cannot be converted. This is a heuristic to handle cases where there may be some non-date values in the X-axis column, but the majority of the data is date-like and can be visualized as a line plot over time.
+                
                 df_grouped = df.groupby([column_for_X_axis, color_by_column])
-                df_grouped = df_grouped.mean(numeric_only=True).reset_index() #drops non-numeric columns -NEEDS ADDRESSING
-                df_final = df_grouped[df_grouped[color_by_column].isin(selected_items)]
-                print(df_final.columns)                 
+                df_grouped = df_grouped.mean(numeric_only=True).reset_index() 
+                df_grouped = df_grouped.sort_values(by=column_for_X_axis)
+                df_final = df_grouped[df_grouped[color_by_column].isin(selected_items)] #
+                  
                 fig = px.line(df_final, x=column_for_X_axis, y=column_for_Y_axis, color=color_by_column)
 
             else:
