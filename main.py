@@ -47,7 +47,7 @@ if uploaded_file is not None:
     st.sidebar.subheader("Select Columns to Plot and Plot Type")
     for col in df.columns:
         if not pd.api.types.is_numeric_dtype(df[col]):
-            print(f"🕵️ Detective is checking column: {col}")
+            # print(f"🕵️ Detective is checking column: {col}")
             temp_date = pd.to_datetime(df[col], errors='coerce',format='mixed') # Attempt to convert to datetime, coercing errors to NaT. The 'format' parameter is set to 'mixed' to allow for multiple date formats within the same column, which is a common scenario in real-world datasets. This way, we can still identify and convert valid date entries while gracefully handling any non-date entries without causing the entire conversion to fail.
             if temp_date.notnull().sum() > (0.8 * len(df)):
                 print("gets in here")
@@ -95,20 +95,30 @@ if uploaded_file is not None:
                     fig = px.scatter(df, x=column_for_X_axis, y=column_for_Y_axis, color=color_by_column)
             elif plot_type == "Line Plot":
                 group_cols = [column_for_X_axis]
+                
                 if color_by_column:
                     group_cols.append(color_by_column)
                 df_grouped = df.groupby(group_cols) # Group the DataFrame by the X-axis column and the color grouping column (if selected) to prepare for aggregation. This allows us to calculate summary statistics for each group defined by the unique combinations of the X-axis values and the color grouping categories, which is essential for creating meaningful line plots that show trends over the X-axis while comparing different groups based on the color grouping.
+                
                 if pd.api.types.is_numeric_dtype(df[column_for_Y_axis]):
                     df_grouped = df_grouped[column_for_Y_axis].mean().reset_index() # For numeric Y-axis, calculate the mean for each group to create a meaningful line plot that shows trends over the X-axis while comparing different categories based on the color grouping. This allows users to visualize how the average value of the Y-axis variable changes across the X-axis for different groups defined by the color grouping column.
                 else:
                     df_grouped = df_grouped[column_for_Y_axis].count().reset_index() # For non-numeric Y-axis, calculate the count for each group to create a line plot that shows the frequency of occurrences for each category across the X-axis while comparing different groups based on the color grouping. This provides insights into the distribution of categorical data across the X-axis and how it varies between different groups defined by the color grouping column.
                 df_grouped = df_grouped.sort_values(by=column_for_X_axis)
+                
                 if color_by_column:
                     df_final = df_grouped[df_grouped[color_by_column].isin(selected_items)] 
                 else:
                     df_final = df_grouped
-                print(df_grouped)
+                print(df_grouped) 
+                '''for next time:
+                    Variable Initialization: We need to ensure df_grouped and df_final are explicitly reset or redefined at the start of every plot calculation.
 
+                    The "None" Cleanup: We'll make sure the group_cols list is truly emptied of the color variable when the sidebar is cleared.
+
+                    UI Feedback: Ensuring the selected_items (the multiselect) also resets or hides when there is no column to filter by.
+                '''
+                
                 fig = px.line(df_final, x=column_for_X_axis, y=column_for_Y_axis, color=color_by_column)
 
             else:
