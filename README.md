@@ -2,21 +2,21 @@
 A smart Streamlit application designed to turn raw CSV data into meaningful insights through intelligent, automated visualization logic.
 
 🚀 Key Features
-1. Intelligent Axis Mapping 
+1. Intelligent Axis Mapping  
   The app doesn't just list columns; it evaluates them.
 
 👉Smart Time-Detection: Automatically identifies and cleans date columns, handling mixed formats and converting them to a usable year-based axis.
 
 👉Numeric-First UI: To keep the interface clean, the Y-axis prioritizes numeric columns when a date is present, preventing "noisy" categorical data from cluttering the dropdown.
 
-2. Adaptive Aggregation Engine 
+2. Adaptive Aggregation Engine  
 The app adjusts its math based on the data types you choose:
 
 👉Numeric Data: Automatically calculates the mean to show trends over time or across categories.
 
 👉Categorical Data: Performs a count to show frequency and distribution (e.g., counting car brands or species).
 
-3. Robust Data Pipeline 
+3. Robust Data Pipeline  
 Built with defensive programming principles:
 
 👉Dynamic Grouping: Handles "Color By" selections gracefully, preventing crashes when no category is selected.
