@@ -10,11 +10,12 @@ def change_state():
     st.session_state.plot = None
     st.session_state.column_data = None
     st.session_state.ui_alert_message = None
-    date_column = None
+
             
 st.set_page_config(page_title="EZ Plots", page_icon=None, layout="wide", initial_sidebar_state="auto", menu_items=None)    
 st.title("EZ_Plots: Your Data's Best Friend for Quick and Easy Visualization")
 st.sidebar.title("Toolbar")
+date_column = None
 # uploaded_files = st.file_uploader("Drag and drop your CSV file here", accept_multiple_files=True, type=["csv"], key="file_uploader",  help="Upload a CSV file to visualize its data. As of now only CSV files are supported.")
 # if uploaded_files is not None:    #for multiple file upload
 #     for uploaded_file in uploaded_files:
@@ -54,12 +55,14 @@ if uploaded_file is not None:
                 df = df.dropna(subset=[col]) # Drop the "Bad" rows immediately
                 df[col] = df[col].astype(int) # Safe to turn into an official integer
                 date_column = df[col].name
-                      
-    temp_num_cols = [col for col in df.select_dtypes(include=['number']).columns.tolist() if col != date_column] # Exclude the date column from the list of numeric columns to prevent it from being selected as the Y-axis in the plot, which could lead to misleading visualizations. By doing this, we ensure that users are only able to select appropriate numeric columns for the Y-axis, while still allowing the date column to be used as the X-axis for time series visualizations.
+    
     column_for_X_axis = st.sidebar.selectbox("Select Column for X-axis", df.columns, index=None, key="x_axis_select")
     
+    temp_num_cols = []
+    if date_column:                  
+        temp_num_cols = [col for col in df.select_dtypes(include=['number']).columns.tolist() if col != date_column] # Exclude the date column from the list of numeric columns to prevent it from being selected as the Y-axis in the plot, which could lead to misleading visualizations. By doing this, we ensure that users are only able to select appropriate numeric columns for the Y-axis, while still allowing the date column to be used as the X-axis for time series visualizations.
+    
     if not temp_num_cols:
-        print("enters here as categorical columns")
         temp_num_cols = [col for col in df.columns if col != column_for_X_axis] # If no numeric columns are available, allow all columns except the X-axis column to be selected for the Y-axis. This provides flexibility for users to still create visualizations even when their dataset doesn't contain numeric columns, while also preventing them from selecting the same column for both axes which would lead to an uninformative plot.
     
     column_for_Y_axis = st.sidebar.selectbox("Select Column for Y-axis", temp_num_cols, index=None, key="y_axis_select")
@@ -68,7 +71,7 @@ if uploaded_file is not None:
     categorical_cols = df.select_dtypes(include=['object', 'category', 'string']).columns.tolist() # Identify categorical columns for special handling in scatter plot
        
     if column_for_X_axis and column_for_Y_axis and plot_type:
-        color_by_col_options = [col for col in df.columns if col != column_for_X_axis] # Exclude the X-axis column from the color grouping options to prevent crashing when df.groupby([column_for_X_axis, color_by_column]) is used for line plot, since grouping by the X-axis column doesn't make sense and can lead to errors or misleading visualizations. By excluding the X-axis column from the color grouping options, we guide users towards making more meaningful selections for their visualizations.
+        color_by_col_options = [col for col in df.columns if col != column_for_X_axis and col != column_for_Y_axis] # Exclude the X-axis and Y-axis columns from the color grouping options to prevent crashing when df.groupby([column_for_X_axis, color_by_column]) is used for line plot, since grouping by these columns doesn't make sense and can lead to errors or misleading visualizations. By excluding these columns from the color grouping options, we guide users towards making more meaningful selections for their visualizations.
         color_by_column = st.sidebar.selectbox("Color by Column", color_by_col_options, index=None, key="color_by_select")
         
         if plot_type == "Line Plot" and color_by_column:
@@ -91,18 +94,21 @@ if uploaded_file is not None:
                 else:
                     fig = px.scatter(df, x=column_for_X_axis, y=column_for_Y_axis, color=color_by_column)
             elif plot_type == "Line Plot":
-                
-                df_grouped = df.groupby([column_for_X_axis, color_by_column])
-                #DEAL WITH: raise ValueError(f"cannot insert {column}, already exists")   
-                #df_grouped = df_grouped[column_for_Y_axis].mean().reset_index()   
-                #ValueError: cannot insert AverageTemperature, already exists
+                group_cols = [column_for_X_axis]
+                if color_by_column:
+                    group_cols.append(color_by_column)
+                df_grouped = df.groupby(group_cols) # Group the DataFrame by the X-axis column and the color grouping column (if selected) to prepare for aggregation. This allows us to calculate summary statistics for each group defined by the unique combinations of the X-axis values and the color grouping categories, which is essential for creating meaningful line plots that show trends over the X-axis while comparing different groups based on the color grouping.
                 if pd.api.types.is_numeric_dtype(df[column_for_Y_axis]):
-                    df_grouped = df_grouped[column_for_Y_axis].mean().reset_index()
+                    df_grouped = df_grouped[column_for_Y_axis].mean().reset_index() # For numeric Y-axis, calculate the mean for each group to create a meaningful line plot that shows trends over the X-axis while comparing different categories based on the color grouping. This allows users to visualize how the average value of the Y-axis variable changes across the X-axis for different groups defined by the color grouping column.
                 else:
-                    df_grouped = df_grouped[column_for_Y_axis].count().reset_index()
+                    df_grouped = df_grouped[column_for_Y_axis].count().reset_index() # For non-numeric Y-axis, calculate the count for each group to create a line plot that shows the frequency of occurrences for each category across the X-axis while comparing different groups based on the color grouping. This provides insights into the distribution of categorical data across the X-axis and how it varies between different groups defined by the color grouping column.
                 df_grouped = df_grouped.sort_values(by=column_for_X_axis)
-                df_final = df_grouped[df_grouped[color_by_column].isin(selected_items)] 
-                  
+                if color_by_column:
+                    df_final = df_grouped[df_grouped[color_by_column].isin(selected_items)] 
+                else:
+                    df_final = df_grouped
+                print(df_grouped)
+
                 fig = px.line(df_final, x=column_for_X_axis, y=column_for_Y_axis, color=color_by_column)
 
             else:
