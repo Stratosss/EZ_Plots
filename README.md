@@ -3,7 +3,7 @@ A smart Streamlit application designed to turn raw CSV data into meaningful insi
 
 🚀 Key Features
 1. Intelligent Axis Mapping
-The app doesn't just list columns; it evaluates them.
+  The app doesn't just list columns; it evaluates them.
 
 👉Smart Time-Detection: Automatically identifies and cleans date columns, handling mixed formats and converting them to a usable year-based axis.
 
