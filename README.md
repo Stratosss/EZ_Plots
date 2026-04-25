@@ -46,3 +46,7 @@ Color By: (Optional) Pick a categorical column to split your data into multiple 
 Plot Type: Choose between Line, Scatter (Strip), or Bar plots.
 
 Created with a focus on Split-Apply-Combine logic and user-centric design.
+
+![App Screenshot](Snapshots/1.jpg)
+![App Screenshot](Snapshots/2.jpg)
+![App Screenshot](Snapshots/3.jpg)
