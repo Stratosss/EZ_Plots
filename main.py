@@ -57,7 +57,8 @@ if uploaded_file is not None:
                 date_column = df[col].name
     
     column_for_X_axis = st.sidebar.selectbox("Select Column for X-axis", df.columns, index=None, key="x_axis_select")
-    
+    warning_spot_for_X_axis = st.sidebar.empty() #Placeholder for displaying warnings related to X-axis column selection, such as suitability for the selected plot type. This allows us to provide feedback to users about their column selection without disrupting the layout of the sidebar or the main content area.
+
     temp_num_cols = []
     if date_column:                  
         temp_num_cols = [col for col in df.select_dtypes(include=['number']).columns.tolist() if col != date_column] # Exclude the date column from the list of numeric columns to prevent it from being selected as the Y-axis in the plot, which could lead to misleading visualizations. By doing this, we ensure that users are only able to select appropriate numeric columns for the Y-axis, while still allowing the date column to be used as the X-axis for time series visualizations.
@@ -66,6 +67,9 @@ if uploaded_file is not None:
         temp_num_cols = [col for col in df.columns if col != column_for_X_axis] # If no numeric columns are available, allow all columns except the X-axis column to be selected for the Y-axis. This provides flexibility for users to still create visualizations even when their dataset doesn't contain numeric columns, while also preventing them from selecting the same column for both axes which would lead to an uninformative plot.
     
     column_for_Y_axis = st.sidebar.selectbox("Select Column for Y-axis", temp_num_cols, index=None, key="y_axis_select")
+    warning_spot_for_Y_axis = st.sidebar.empty() # Placeholder for displaying warnings related to Y-axis column selection, such as suitability for the selected plot type or presence of missing values. This allows us to provide feedback to users about their column selection and data quality without disrupting the layout of the sidebar or the main content area.
+    
+    
     plot_type = st.sidebar.selectbox("Select Plot Type", ["Scatter Plot", "Line Plot", "Bar Plot"], index=None)
 
     categorical_cols = df.select_dtypes(include=['object', 'category', 'string']).columns.tolist() # Identify categorical columns for special handling in scatter plot
@@ -87,6 +91,15 @@ if uploaded_file is not None:
         if st.sidebar.button("Generate Plot", icon="📊", width="stretch"):
             # Reset the warning every time a new plot is requested
             st.session_state.ui_alert_message = None
+
+            null_count_X = df[column_for_X_axis].isnull().sum() # Count the number of missing values in the selected X-axis column to provide a warning to users about potential issues with their visualization if they have missing data. This allows users to be aware of the quality of their data and encourages them to handle missing values appropriately for better visualization results.
+            if null_count_X > 0:             
+                warning_spot_for_X_axis.warning(f"The selected X-axis column '{column_for_X_axis}' contains {null_count_X} missing values. Consider handling these missing values for better visualization results.", icon="⚠️")
+            
+            null_count_Y = df[column_for_Y_axis].isnull().sum() # Count the number of missing values in the selected Y-axis column to provide a warning to users about potential issues with their visualization if they have missing data. This allows users to be aware of the quality of their data and encourages them to handle missing values appropriately for better visualization results.
+            if null_count_Y > 0:
+                warning_spot_for_Y_axis.warning(f"The selected Y-axis column '{column_for_Y_axis}' contains {null_count_Y} missing values. Consider handling these missing values for better visualization results.", icon="⚠️")
+        
             if plot_type == "Scatter Plot":
                 if column_for_X_axis in categorical_cols or column_for_Y_axis in categorical_cols:
                     st.session_state.ui_alert_message = "Scatter plot may not be suitable for categorical data. Consider using a different plot type."
@@ -111,6 +124,7 @@ if uploaded_file is not None:
                 else:
                     df_final = df_grouped
                 print(df_grouped)
+                print(df.isnull().sum())
                                 
                 fig = px.line(df_final, x=column_for_X_axis, y=column_for_Y_axis, color=color_by_column)
 
