@@ -106,8 +106,8 @@ if uploaded_file is not None:
                     df_grouped = df_grouped[column_for_Y_axis].count().reset_index() # For non-numeric Y-axis, calculate the count for each group to create a line plot that shows the frequency of occurrences for each category across the X-axis while comparing different groups based on the color grouping. This provides insights into the distribution of categorical data across the X-axis and how it varies between different groups defined by the color grouping column.
                 df_grouped = df_grouped.sort_values(by=column_for_X_axis)
                 
-                if color_by_column:
-                    df_final = df_grouped[df_grouped[color_by_column].isin(selected_items)] 
+                if color_by_column: 
+                    df_final = df_grouped[df_grouped[color_by_column].isin(selected_items)] # Filter the grouped DataFrame to include only the selected categories for comparison in the line plot. This allows users to focus on specific groups of interest and compare their trends over the X-axis without being overwhelmed by too many lines in the plot, which can enhance the clarity and interpretability of the visualization.
                 else:
                     df_final = df_grouped
                 print(df_grouped)
