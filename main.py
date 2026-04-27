@@ -77,7 +77,7 @@ if uploaded_file is not None:
         if plot_type == "Line Plot" and color_by_column:
             selected_items = st.sidebar.multiselect(
                     f"Select {color_by_column} to Compare", 
-                    options=df[color_by_column].fillna("Missing").unique(), # need to work on the nan errors i get when there are nulls in the color by column. 
+                    options=df[color_by_column].fillna("Missing").unique(), 
                     default=df[color_by_column].fillna("Missing").unique()[:5] # Default to the first 5
                 )
             if not selected_items:
@@ -110,15 +110,8 @@ if uploaded_file is not None:
                     df_final = df_grouped[df_grouped[color_by_column].isin(selected_items)] 
                 else:
                     df_final = df_grouped
-                print(df_grouped) 
-                '''for next time:
-                    Variable Initialization: We need to ensure df_grouped and df_final are explicitly reset or redefined at the start of every plot calculation.
-
-                    The "None" Cleanup: We'll make sure the group_cols list is truly emptied of the color variable when the sidebar is cleared.
-
-                    UI Feedback: Ensuring the selected_items (the multiselect) also resets or hides when there is no column to filter by.
-                '''
-                
+                print(df_grouped)
+                                
                 fig = px.line(df_final, x=column_for_X_axis, y=column_for_Y_axis, color=color_by_column)
 
             else:
